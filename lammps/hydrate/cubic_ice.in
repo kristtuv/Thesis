@@ -1,0 +1,57 @@
+#Choosing units
+units			real
+#Dimensions of simulation
+dimension 		3
+#Boundary conditions
+boundary 		p p p
+#What style of atoms to us in a simulation and what attributes to use
+atom_style 		full
+#Pair potentials..Defininge pairwiseinteractions
+pair_style 		sw
+#Instead of defining a lattice we import the postitons of every atom from file
+read_data ${restartFile}
+
+# replicate 2 2 2
+variable timestep equal 10
+variable dumpFrequency equal 100
+variable Tdamp equal 200.0
+# variable Pdamp equal 1000.0
+variable Pdamp equal 100.0
+variable P equal 1.0
+# variable P equal 98.69
+variable lz equal $(zhi-zlo)
+# variable shearAngle equal $(PI*v_shearAngleDegrees/180)
+# variable shear equal $(tan(v_shearAngle)*v_lz)
+# variable partial_shear equal $(v_nErate/2000000*v_shear)
+
+
+#Masses, also defined in restartFile; is this necessary?
+# mass 1 18.0154
+# mass 2 16.04
+
+#Pariwise force field coefficients of one or more pairs of atoms &
+#the asterisk is used as a placeholder for multiple pairs of atom types
+pair_coeff * * parameters/water_methane_hydrate.sw O
+# pair_coeff * * parameters/cubic_ice.sw O
+
+#Grouping or in this case renaming the molecules
+group water 	type 	1
+# group methane 	type 	2
+velocity all create 0.01 4928459 rot yes dist gaussian
+# fix fxnpt all npt temp ${temperature} ${temperature} ${Tdamp} x $P $P ${Pdamp} y $P $P ${Pdamp} z $P $P ${Pdamp}
+fix fxnpt all npt temp ${temperature} ${temperature} ${Tdamp} iso $P $P ${Pdamp} 
+# fix fxnpt all nvt temp ${temperature} ${temperature} ${Tdamp}
+
+# compute 1 all orientorder/atom degrees 4 6 components 6 nnn NULL cutoff 3.0
+
+#Outputs information to terminal/logfile every N timesteps
+thermo 10
+
+#What is output by thermo command
+thermo_style custom step time temp density press
+
+dump hydro all custom ${dumpFrequency} cubic_ice${temperature}.dump id type x y z
+
+timestep ${timestep}
+neigh_modify delay 0 every 1 check yes
+run 10000

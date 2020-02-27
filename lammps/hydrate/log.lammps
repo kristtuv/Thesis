@@ -1,0 +1,151 @@
+LAMMPS (7 Aug 2019)
+  using 20 OpenMP thread(s) per MPI task
+#Choosing units
+units			real
+#Dimensions of simulation
+dimension 		3
+#Boundary conditions
+boundary 		p p p
+#What style of atoms to us in a simulation and what attributes to use
+atom_style 		full
+#Pair potentials..Defininge pairwiseinteractions
+pair_style 		sw
+#Instead of defining a lattice we import the postitons of every atom from file
+read_data ${restartFile}
+read_data data/methane_hydrate_SI_UA_charge.data
+  orthogonal box = (0 0 0) to (12.03 12.03 12.03)
+  1 by 2 by 5 MPI processor grid
+  reading atoms ...
+  54 atoms
+  0 = max # of 1-2 neighbors
+  0 = max # of 1-3 neighbors
+  0 = max # of 1-4 neighbors
+  1 = max # of special neighbors
+  special bonds CPU = 0.000882507 secs
+  read_data CPU = 0.00483197 secs
+
+# replicate 5 5 5
+# replicate 3 3 3
+variable timestep equal 10
+variable dumpFrequency equal 100
+variable Tdamp equal 200.0
+# variable Pdamp equal 1000.0
+variable Pdamp equal 100.0
+variable P equal 1.0
+# variable P equal 98.69
+variable lz equal $(zhi-zlo)
+variable lz equal 12.029999999999999361
+#Pariwise force field coefficients of one or more pairs of atoms #the asterisk is used as a placeholder for multiple pairs of atom types
+pair_coeff * * parameters/water_methane_hydrate.sw O C
+
+#Grouping or in this case renaming the molecules
+group water 	type 	1
+46 atoms in group water
+group methane 	type 	2
+8 atoms in group methane
+
+# fix fxnpt all npt temp ${temperature} ${temperature} ${Tdamp} x $P $P ${Pdamp} y $P $P ${Pdamp} z $P $P ${Pdamp}
+fix fxnpt all npt temp ${temperature} ${temperature} ${Tdamp} iso $P $P ${Pdamp}
+fix fxnpt all npt temp 250 ${temperature} ${Tdamp} iso $P $P ${Pdamp}
+fix fxnpt all npt temp 250 250 ${Tdamp} iso $P $P ${Pdamp}
+fix fxnpt all npt temp 250 250 200 iso $P $P ${Pdamp}
+fix fxnpt all npt temp 250 250 200 iso 1 $P ${Pdamp}
+fix fxnpt all npt temp 250 250 200 iso 1 1 ${Pdamp}
+fix fxnpt all npt temp 250 250 200 iso 1 1 100
+# fix fxnvt all nvt temp ${temperature} ${temperature} ${Tdamp}
+# compute deformTemp all temp/deform
+# compute stressAtom all stress/atom deformTemp
+# compute orientorder water orientorder/atom  degrees 1 3 components 3 nnn 4
+
+# compute wolde05 all coord/atom orientorder orient 0.5
+# compute woldem08 all coord/atom orientorder orient -0.8
+# compute wolde025 all coord/atom orientorder orient 0.25
+# compute woldem035 all coord/atom orientorder orient -0.35
+# compute woldem1 all coord/atom orientorder orient -0.999999999
+
+# compute 1 all orientorder/atom degrees 4 6 components 6 nnn NULL cutoff 3.0
+
+#Outputs information to terminal/logfile every N timesteps
+thermo 10
+
+#What is output by thermo command
+# thermo_style custom step time temp c_deformTemp etotal ke pe evdwl # press density lx ly lz xy xz yz pxx pyy pzz pxy pxz pyz spcpu cpuremain
+thermo_style custom step time temp density press
+
+#Calculates the temerature for a group of atoms by substracting the streaming
+#velocity,i.e the center of mass veloctiy which in this case is induced by the
+#shearing when deformation of the box happens.
+#The temp is then calculated using the kinetic energy formula
+#This temp will only be correct if the box is indeed deformed
+
+# fix aveAtom all ave/atom 1 ${dumpFrequency} ${dumpFrequency} c_stressAtom[*]
+# dump orient all custom ${dumpFrequency} orientparams.dump id type x y z c_orientorder[*]
+# dump orient all custom ${dumpFrequency} positions${temperature}.dump id type x y z
+# dump hydro water custom ${dumpFrequency} waterpositions${temperature}.bin id type x y z
+dump hydro all custom ${dumpFrequency} unit${temperature}.dump id type x y z
+dump hydro all custom 100 unit${temperature}.dump id type x y z
+dump hydro all custom 100 unit250.dump id type x y z
+# dump hydro2 water custom ${dumpFrequency} waterpositions${temperature}.dump id type x y z
+# dump dumpthemall all custom ${dumpFrequency} hydratestructures${temperature}.dump id type x y z
+# dump_modify orient sort id
+# dump newdump all custom ${dumpFrequency} wolde.dump id x y z vx vy vz c_woldem035[*] c_wolde025[*] c_woldem08[*] c_wolde05[*] c_woldem1[*]
+# dump myDump all atom 100 dump.atom
+
+##dump myDump all custom ${dumpFrequency} trajectory.bin id mol type x y z vx vy vz f_aveAtom[*]
+##dump myDump all custom ${dumpFrequency} trajectory.dump id mol type x y z vx vy vz f_aveAtom[*]
+
+timestep ${timestep}
+timestep 10
+neigh_modify delay 0 every 1 check yes
+run 10
+Neighbor list info ...
+  update every 1 steps, delay 0 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 9.344
+  ghost atom cutoff = 9.344
+  binsize = 4.672, bins = 3 3 3
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair sw, perpetual
+      attributes: full, newton on
+      pair build: full/bin
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 23.66 | 23.73 | 24.03 Mbytes
+Step Time Temp Density Press 
+       0            0            0   0.91280288   -5983.2147 
+      10          100    14.049681     1.031097    2077.5644 
+Loop time of 0.00566566 on 200 procs for 10 steps with 54 atoms
+
+Performance: 1524.976 ns/day, 0.016 hours/ns, 1765.018 timesteps/s
+93.8% CPU use with 10 MPI tasks x 20 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.00055563 | 0.0019447  | 0.0048013  |   2.9 | 34.32
+Bond    | 6.6217e-07 | 9.3728e-07 | 1.1586e-06 |   0.0 |  0.02
+Neigh   | 3.0004e-05 | 4.9338e-05 | 8.2167e-05 |   0.0 |  0.87
+Comm    | 0.00054127 | 0.0034244  | 0.0048362  |   2.2 | 60.44
+Output  | 1.7227e-05 | 1.8664e-05 | 2.5975e-05 |   0.0 |  0.33
+Modify  | 0.00014343 | 0.00015791 | 0.00016978 |   0.0 |  2.79
+Other   |            | 6.967e-05  |            |       |  1.23
+
+Nlocal:    5.4 ave 9 max 4 min
+Histogram: 3 0 5 0 0 0 0 0 1 1
+Nghost:    633.8 ave 660 max 611 min
+Histogram: 2 0 4 0 0 0 0 0 1 3
+Neighs:    0 ave 0 max 0 min
+Histogram: 10 0 0 0 0 0 0 0 0 0
+FullNghs:  655.2 ave 1078 max 490 min
+Histogram: 3 5 0 0 0 0 0 0 1 1
+
+Total # of neighbors = 6552
+Ave neighs/atom = 121.333
+Ave special neighs/atom = 0
+Neighbor list builds = 1
+Dangerous builds = 0
+ #
+ #fix fDeform all deform 1 xz delta $(v_partial_shear)
+ #
+ #run ${nErate}
+Total wall time: 0:00:00

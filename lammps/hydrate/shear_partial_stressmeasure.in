@@ -1,0 +1,81 @@
+#Choosing units
+units			real
+#Dimensions of simulation
+dimension 		3
+#Boundary conditions
+boundary 		p p p
+#What style of atoms to us in a simulation and what attributes to use
+atom_style 		full
+#Pair potentials..Defininge pairwiseinteractions
+pair_style 		sw
+#Instead of defining a lattice we import the postitons of every atom from file
+read_data ${restartFile}
+
+# replicate 5 5 5
+# replicate 3 3 3 
+variable timestep equal 10
+variable dumpFrequency equal 100
+variable Tdamp equal 200.0
+# variable Pdamp equal 1000.0
+variable Pdamp equal 100.0
+variable P equal 1.0
+# variable P equal 98.69
+variable lz equal $(zhi-zlo)
+#Pariwise force field coefficients of one or more pairs of atoms &
+#the asterisk is used as a placeholder for multiple pairs of atom types
+pair_coeff * * parameters/water_methane_hydrate.sw O C
+
+#Grouping or in this case renaming the molecules
+group water 	type 	1
+group methane 	type 	2
+
+# fix fxnpt all npt temp ${temperature} ${temperature} ${Tdamp} x $P $P ${Pdamp} y $P $P ${Pdamp} z $P $P ${Pdamp}
+fix fxnpt all npt temp ${temperature} ${temperature} ${Tdamp} iso $P $P ${Pdamp} 
+# fix fxnvt all nvt temp ${temperature} ${temperature} ${Tdamp}
+# compute deformTemp all temp/deform
+# compute stressAtom all stress/atom deformTemp
+# compute orientorder water orientorder/atom  degrees 1 3 components 3 nnn 4
+
+# compute wolde05 all coord/atom orientorder orient 0.5
+# compute woldem08 all coord/atom orientorder orient -0.8
+# compute wolde025 all coord/atom orientorder orient 0.25
+# compute woldem035 all coord/atom orientorder orient -0.35
+# compute woldem1 all coord/atom orientorder orient -0.999999999
+
+# compute 1 all orientorder/atom degrees 4 6 components 6 nnn NULL cutoff 3.0
+
+#Outputs information to terminal/logfile every N timesteps
+thermo 10
+
+#What is output by thermo command
+# thermo_style custom step time temp c_deformTemp etotal ke pe evdwl &
+# press density lx ly lz xy xz yz pxx pyy pzz pxy pxz pyz spcpu cpuremain
+thermo_style custom step time temp density press
+
+#Calculates the temerature for a group of atoms by substracting the streaming
+#velocity,i.e the center of mass veloctiy which in this case is induced by the
+#shearing when deformation of the box happens.
+#The temp is then calculated using the kinetic energy formula
+#This temp will only be correct if the box is indeed deformed
+
+# fix aveAtom all ave/atom 1 ${dumpFrequency} ${dumpFrequency} c_stressAtom[*]
+# dump orient all custom ${dumpFrequency} orientparams.dump id type x y z c_orientorder[*]
+# dump orient all custom ${dumpFrequency} positions${temperature}.dump id type x y z
+# dump hydro water custom ${dumpFrequency} waterpositions${temperature}.bin id type x y z
+dump hydro all custom ${dumpFrequency} unit${temperature}.dump id type x y z
+# dump hydro2 water custom ${dumpFrequency} waterpositions${temperature}.dump id type x y z
+# dump dumpthemall all custom ${dumpFrequency} hydratestructures${temperature}.dump id type x y z
+# dump_modify orient sort id
+# dump newdump all custom ${dumpFrequency} wolde.dump id x y z vx vy vz c_woldem035[*] c_wolde025[*] c_woldem08[*] c_wolde05[*] c_woldem1[*]
+# dump myDump all atom 100 dump.atom
+
+##dump myDump all custom ${dumpFrequency} trajectory.bin id mol type x y z vx vy vz f_aveAtom[*]
+##dump myDump all custom ${dumpFrequency} trajectory.dump id mol type x y z vx vy vz f_aveAtom[*]
+
+timestep ${timestep}
+neigh_modify delay 0 every 1 check yes
+run 10
+ #
+ #fix fDeform all deform 1 xz delta $(v_partial_shear)
+ #
+ #run ${nErate}

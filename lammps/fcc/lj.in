@@ -1,0 +1,44 @@
+units lj
+dimension 3
+boundary p p p
+atom_style atomic
+
+lattice fcc 0.005
+
+region simbox block 0 10 0 10 0 10
+create_box 1 simbox
+create_atoms 1 box
+
+mass 1 1.0
+velocity all create 10 97432
+pair_style sgcolloidal 2
+pair_coeff 1 1 8 0.5 
+# pair_style lj/cut 3.0
+# pair_coeff 1 1 1.0 1.0 3.0
+
+# fix 1 all nve
+fix 1 all nvt temp 0.4 0.4 100.0
+timestep 0.01
+
+# compute orientorder all orientorder/atom degrees 1 6 components 6 cutoff 1.2 
+# compute makesense all orientorder/atom degrees 1 6 cutoff 1.2
+
+# compute wolde05 all coord/atom orientorder orient 0.5 
+# compute wolde09 all coord/atom orientorder orient 0.9 
+# dump 1 all custom 10 wolde.dump c_wolde[*]
+# dump wolde all custom 100 lj.dump id type x y z vx vy vz c_wolde05[*] c_wolde09[*]
+# dump makesense all custom 100 makesense.dump id c_makesense[*] 
+# dump orderparam all custom 100 orderparam.dump id x y z vx vy vz c_orientation[*] 
+# run 10000
+dump positions all custom 100 pos2.bin id x y z vx vy vz
+thermo 400
+run 10000
+unfix 1
+fix 1 all nvt temp 0.4 0.2 10.0
+run 100000
+unfix 1
+fix 1 all nvt temp 0.2 0.07 10.0
+run 1000000
+# unfix 1
+# fix 1 all nvt temp 0.02 0.02 10.0
+# run 1000000
